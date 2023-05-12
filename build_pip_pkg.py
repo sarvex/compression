@@ -96,10 +96,10 @@ def main(srcdir):
   )
 
   destdir = "/tmp/tensorflow_compression"
-  print("=== Copying wheel to " + destdir)
+  print(f"=== Copying wheel to {destdir}")
   if not os.path.exists(destdir): os.mkdir(destdir)
   for path in glob.glob(os.path.join(tempdir, "dist", "*.whl")):
-    print("Copying into " + os.path.join(destdir, os.path.basename(path)))
+    print(f"Copying into {os.path.join(destdir, os.path.basename(path))}")
     shutil.copy(path, destdir)
 
 

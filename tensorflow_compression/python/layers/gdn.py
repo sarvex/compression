@@ -195,9 +195,10 @@ class GDN(tf.keras.layers.Layer):
   def data_format(self, value):
     self._check_not_built()
     value = str(value)
-    if value not in ("channels_first", "channels_last"):
+    if value in {"channels_first", "channels_last"}:
+      self._data_format = value
+    else:
       raise ValueError(f"Unknown data format: '{value}'.")
-    self._data_format = value
 
   @property
   def alpha_parameter(self) -> ParameterType:
@@ -410,10 +411,7 @@ class GDN(tf.keras.layers.Layer):
     else:
       norm_pool = norm_pool ** self.epsilon
 
-    if self.inverse:
-      return inputs * norm_pool
-    else:
-      return inputs / norm_pool
+    return inputs * norm_pool if self.inverse else inputs / norm_pool
 
   def compute_output_shape(self, input_shape) -> tf.TensorShape:
     return tf.TensorShape(input_shape)

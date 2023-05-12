@@ -178,7 +178,7 @@ class ConvolutionsTest(tf.test.TestCase):
     slices = tuple(slice(None, None, s) for s in strides_down)
 
     # Upsample input.
-    if not all(s == 1 for s in strides_up):
+    if any(s != 1 for s in strides_up):
       inputs = self.numpy_upsample(inputs, strides_up, extra_pad_end)
 
     channels_out = kernel.shape[-1]
@@ -293,7 +293,7 @@ class ConvolutionsTest(tf.test.TestCase):
 
     # Upsample and then downsample inputs.
     expected = inputs
-    if not all(s == 1 for s in strides_up):
+    if any(s != 1 for s in strides_up):
       expected = self.numpy_upsample(expected, strides_up, extra_pad_end)
     slices = (slice(None), slice(None))
     slices += tuple(slice(None, None, s) for s in strides_down)
@@ -332,10 +332,7 @@ class ConvolutionsTest(tf.test.TestCase):
       return False
 
     # If we have to use the depthwise backprop op, we can't use filters > 1.
-    if channel_separable and must_use_transpose and filters != 1:
-      return False
-
-    return True
+    return not channel_separable or not must_use_transpose or filters == 1
 
   @property
   def data_formats(self):
@@ -357,9 +354,7 @@ class ConvolutionsTest(tf.test.TestCase):
       try:
         method(**args)
       except:
-        msg = []
-        for k in sorted(args):
-          msg.append(f"{k}={args[k]}")
+        msg = [f"{k}={args[k]}" for k in sorted(args)]
         print("Failed when it shouldn't have: " + ", ".join(msg))
         raise
     else:
@@ -367,9 +362,7 @@ class ConvolutionsTest(tf.test.TestCase):
         with self.assertRaisesRegexp(NotImplementedError, "SignalConv"):
           method(**args)
       except:
-        msg = []
-        for k in sorted(args):
-          msg.append(f"{k}={args[k]}")
+        msg = [f"{k}={args[k]}" for k in sorted(args)]
         print("Did not fail when it should have: " + ", ".join(msg))
         raise
 

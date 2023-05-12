@@ -42,10 +42,11 @@ def _normalize_int_tuple(value, name, rank) -> Tuple[int]:
 
 
 def _greatest_common_factor(iterable) -> int:
-  for f in range(max(iterable), 1, -1):
-    if all(i % f == 0 for i in iterable):
-      return f
-  return 1
+  return next(
+      (f for f in range(max(iterable), 1, -1) if all(i % f == 0
+                                                     for i in iterable)),
+      1,
+  )
 
 
 class _SignalConv(tf.keras.layers.Layer):
@@ -428,9 +429,10 @@ class _SignalConv(tf.keras.layers.Layer):
   def data_format(self, value):
     self._check_not_built()
     value = str(value)
-    if value not in ("channels_first", "channels_last"):
+    if value in {"channels_first", "channels_last"}:
+      self._data_format = value
+    else:
       raise ValueError(f"Unknown data format: '{value}'.")
-    self._data_format = value
 
   @property
   def activation(self) -> Optional[Callable[[Any], tf.Tensor]]:

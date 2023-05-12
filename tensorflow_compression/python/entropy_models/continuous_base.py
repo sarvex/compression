@@ -133,8 +133,8 @@ class ContinuousEntropyModelBase(tf.Module, metaclass=abc.ABCMeta):
           if self.stateless:
             raise ValueError(
                 "With `stateless=True`, can't provide `cdf_max_length`.")
-          cdf_max_length = int(cdf_max_length)
           context_size = int(self.context_shape.num_elements())
+          cdf_max_length = int(cdf_max_length)
           zeros = tf.zeros([context_size, cdf_max_length], dtype=tf.int32)
           cdf = zeros
           cdf_offset = zeros[:, 0]
@@ -152,10 +152,9 @@ class ContinuousEntropyModelBase(tf.Module, metaclass=abc.ABCMeta):
               cdf_offset, dtype=tf.int32, trainable=False, name="cdf_offset")
           self._cdf_length = tf.Variable(
               cdf_length, dtype=tf.int32, trainable=False, name="cdf_length")
-      else:
-        if not (cdf is None and cdf_offset is None and cdf_length is None and
-                cdf_max_length is None):
-          raise ValueError("CDFs can't be provided with `compression=False`")
+      elif (cdf is not None or cdf_offset is not None or cdf_length is not None
+            or cdf_max_length is not None):
+        raise ValueError("CDFs can't be provided with `compression=False`")
 
       self._laplace_prior = (tfp.distributions.Laplace(loc=0.0, scale=1.0)
                              if laplace_tail_mass else None)
@@ -269,11 +268,8 @@ class ContinuousEntropyModelBase(tf.Module, metaclass=abc.ABCMeta):
     return tf.round(inputs - offset) + offset, lambda x: (x, None)
 
   def _quantize(self, inputs, offset=None):
-    if offset is None:
-      outputs = self._quantize_no_offset(inputs)
-    else:
-      outputs = self._quantize_offset(inputs, offset)
-    return outputs
+    return (self._quantize_no_offset(inputs)
+            if offset is None else self._quantize_offset(inputs, offset))
 
   def _offset_from_prior(self, prior):
     """Computes quantization offset from the prior distribution."""
@@ -361,21 +357,20 @@ class ContinuousEntropyModelBase(tf.Module, metaclass=abc.ABCMeta):
 
   def _log_prob_from_prior(self, prior, bottleneck_perturbed):
     """Evaluates prior.log_prob(bottleneck + noise)."""
-    if self.laplace_tail_mass:
-      laplace_prior = self._laplace_prior
-      probs = prior.prob(bottleneck_perturbed)
-      probs = ((1 - self.laplace_tail_mass) * probs +
-               self.laplace_tail_mass *
-               laplace_prior.prob(bottleneck_perturbed))
-      probs_too_small = probs < 1e-10
-      probs_bounded = tf.maximum(probs, 1e-10)
-      return tf.where(
-          probs_too_small,
-          tf.math.log(self.laplace_tail_mass) +
-          laplace_prior.log_prob(bottleneck_perturbed),
-          tf.math.log(probs_bounded))
-    else:
+    if not self.laplace_tail_mass:
       return prior.log_prob(bottleneck_perturbed)
+    laplace_prior = self._laplace_prior
+    probs = prior.prob(bottleneck_perturbed)
+    probs = ((1 - self.laplace_tail_mass) * probs +
+             self.laplace_tail_mass *
+             laplace_prior.prob(bottleneck_perturbed))
+    probs_too_small = probs < 1e-10
+    probs_bounded = tf.maximum(probs, 1e-10)
+    return tf.where(
+        probs_too_small,
+        tf.math.log(self.laplace_tail_mass) +
+        laplace_prior.log_prob(bottleneck_perturbed),
+        tf.math.log(probs_bounded))
 
   @abc.abstractmethod
   def get_config(self):
@@ -413,6 +408,6 @@ class ContinuousEntropyModelBase(tf.Module, metaclass=abc.ABCMeta):
   def set_weights(self, weights):
     if len(weights) != len(self.variables):
       raise ValueError(
-          "`set_weights` expects a list of {} arrays, received {}."
-          "".format(len(self.variables), len(weights)))
+          f"`set_weights` expects a list of {len(self.variables)} arrays, received {len(weights)}."
+      )
     tf.keras.backend.batch_set_value(zip(self.variables, weights))

@@ -267,9 +267,8 @@ class ContinuousIndexedEntropyModel(continuous_base.ContinuousEntropyModelBase):
     indexes = tf.cast(indexes, tf.int32)
     if self.channel_axis is None:
       return indexes
-    else:
-      strides = tf.math.cumprod(self.index_ranges, exclusive=True, reverse=True)
-      return tf.linalg.tensordot(indexes, strides, [[self.channel_axis], [0]])
+    strides = tf.math.cumprod(self.index_ranges, exclusive=True, reverse=True)
+    return tf.linalg.tensordot(indexes, strides, [[self.channel_axis], [0]])
 
   def _offset_from_indexes(self, indexes):
     """Compute the quantization offset from the respective prior."""

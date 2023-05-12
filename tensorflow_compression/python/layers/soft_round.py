@@ -49,8 +49,7 @@ class SoftRound(tf.keras.layers.Layer):
         if inverse else soft_round_ops.soft_round)
 
   def call(self, inputs):
-    outputs = self._transform(inputs, self._alpha)
-    return outputs
+    return self._transform(inputs, self._alpha)
 
   def compute_output_shape(self, input_shape):
     return input_shape

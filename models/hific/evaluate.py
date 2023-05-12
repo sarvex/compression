@@ -119,8 +119,7 @@ def get_arithmetic_coding_bpp(bitstring, bitstring_np, num_pixels):
 
 def get_psnr(inp, otp):
   mse = np.mean(np.square(inp.astype(np.float32) - otp.astype(np.float32)))
-  psnr = 20. * np.log10(255.) - 10. * np.log10(mse)
-  return psnr
+  return 20. * np.log10(255.) - 10. * np.log10(mse)
 
 
 def get_image_names(images_glob):
@@ -146,8 +145,7 @@ def parse_args(argv):
 
   helpers.add_tfds_arguments(parser)
 
-  args = parser.parse_args(argv[1:])
-  return args
+  return parser.parse_args(argv[1:])
 
 
 def main(args):

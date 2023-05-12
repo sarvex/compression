@@ -432,11 +432,11 @@ def main(args):
     train(args)
   elif args.command == "compress":
     if not args.output_file:
-      args.output_file = args.input_file + ".tfci"
+      args.output_file = f"{args.input_file}.tfci"
     compress(args)
   elif args.command == "decompress":
     if not args.output_file:
-      args.output_file = args.input_file + ".png"
+      args.output_file = f"{args.input_file}.png"
     decompress(args)
 
 

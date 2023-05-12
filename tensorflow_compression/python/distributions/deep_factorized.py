@@ -219,8 +219,7 @@ class DeepFactorized(tfp.distributions.Distribution):
     with tf.GradientTape(watch_accessed_variables=False) as tape:
       tape.watch(inputs)
       cdf = self._cdf(inputs)
-    prob = tape.gradient(cdf, inputs)
-    return prob
+    return tape.gradient(cdf, inputs)
 
   def _log_prob(self, inputs):
     inputs = self._broadcast_inputs(inputs)

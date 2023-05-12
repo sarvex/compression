@@ -81,9 +81,7 @@ class NTCModel(compression_model.CompressionModel):
       if alpha is None:
         alpha = self.alpha
       prior = tfc.SoftRoundAdapter(prior, alpha)
-    if skip_noise:
-      return prior
-    return tfc.UniformNoiseAdapter(prior)
+    return prior if skip_noise else tfc.UniformNoiseAdapter(prior)
 
   @property
   def ndim_latent(self):
@@ -295,7 +293,6 @@ class NTCModel(compression_model.CompressionModel):
       # First dimension is batch, second is latent dim, third is source dim.
       jacobian = tape.batch_jacobian(arrow_latents, arrow_data)
       jacobian = tf.linalg.inv(jacobian)
-      jacobian = tf.transpose(jacobian, (0, 2, 1))
     else:
       arrow_latents = [
           tf.linspace(float(i[0]), float(i[1]), int(i[2]))
@@ -308,8 +305,7 @@ class NTCModel(compression_model.CompressionModel):
         tape.watch(arrow_latents)
         arrow_data = self.synthesis(arrow_latents)
       jacobian = tape.batch_jacobian(arrow_data, arrow_latents)
-      jacobian = tf.transpose(jacobian, (0, 2, 1))
-
+    jacobian = tf.transpose(jacobian, (0, 2, 1))
     google_pink = (0xf4/255, 0x39/255, 0xa0/255)
     google_purple = (0xa1/255, 0x42/255, 0xf4/255)
 

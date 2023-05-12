@@ -77,7 +77,7 @@ def load_cached(filename):
 
 def instantiate_model_signature(model, signature, inputs=None, outputs=None):
   """Imports a trained model and returns one of its signatures as a function."""
-  string = load_cached(model + ".metagraph")
+  string = load_cached(f"{model}.metagraph")
   metagraph = tf.compat.v1.MetaGraphDef()
   metagraph.ParseFromString(string)
   wrapped_import = tf.compat.v1.wrap_function(
@@ -109,7 +109,7 @@ def compress_image(model, input_image):
 def compress(model, input_file, output_file, target_bpp=None, bpp_strict=False):
   """Compresses a PNG file to a TFCI file."""
   if not output_file:
-    output_file = input_file + ".tfci"
+    output_file = f"{input_file}.tfci"
 
   # Load image.
   input_image = read_png(input_file)
@@ -120,7 +120,7 @@ def compress(model, input_file, output_file, target_bpp=None, bpp_strict=False):
     bitstring = compress_image(model, input_image)
   else:
     # Get model list.
-    models = load_cached(model + ".models")
+    models = load_cached(f"{model}.models")
     models = models.decode("ascii").split()
 
     # Do a binary search over all RD points.
@@ -145,8 +145,7 @@ def compress(model, input_file, output_file, target_bpp=None, bpp_strict=False):
         upper = i
     if best_bpp is None:
       assert bpp_strict
-      raise RuntimeError(
-          "Could not compress image to less than {} bpp.".format(target_bpp))
+      raise RuntimeError(f"Could not compress image to less than {target_bpp} bpp.")
     bitstring = best_bitstring
 
   # Write bitstring to disk.
@@ -157,7 +156,7 @@ def compress(model, input_file, output_file, target_bpp=None, bpp_strict=False):
 def decompress(input_file, output_file):
   """Decompresses a TFCI file and writes a PNG file."""
   if not output_file:
-    output_file = input_file + ".png"
+    output_file = f"{input_file}.png"
   with tf.io.gfile.GFile(input_file, "rb") as f:
     packed = tfc.PackedTensors(f.read())
   receiver = instantiate_model_signature(packed.model, "receiver")
@@ -168,7 +167,7 @@ def decompress(input_file, output_file):
 
 def list_models():
   """Lists available models in web storage with a description."""
-  url = URL_PREFIX + "/models.txt"
+  url = f"{URL_PREFIX}/models.txt"
   request = urllib.request.urlopen(url)
   try:
     print(request.read().decode("utf-8"))
@@ -200,7 +199,7 @@ def list_tensors(model):
 def dump_tensor(model, tensors, input_file, output_file):
   """Dumps the given tensors of a model in .npz format."""
   if not output_file:
-    output_file = input_file + ".npz"
+    output_file = f"{input_file}.npz"
   # Note: if receiver-side tensors are requested, this is no problem, as the
   # metagraph contains the union of the sender and receiver graphs.
   sender = instantiate_model_signature(model, "sender", outputs=tensors)

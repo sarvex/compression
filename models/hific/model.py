@@ -87,8 +87,9 @@ class _LossScaler(object):
     # We assume lambda_a < lambda_b, and thus 1/lambda_a > 1/lambda_b,
     # i.e., if the rate R is too large, we want a larger factor on it.
     if loss_config.lmbda_a >= loss_config.lmbda_b:
-      raise ValueError("Expected lmbda_a < lmbda_b, got {} >= {}".format(
-          loss_config.lmbda_a, loss_config.lmbda_b))
+      raise ValueError(
+          f"Expected lmbda_a < lmbda_b, got {loss_config.lmbda_a} >= {loss_config.lmbda_b}"
+      )
 
     target_bpp = self._get_scheduled_param(
         loss_config.target, loss_config.target_schedule, step, "target_bpp")
@@ -152,17 +153,16 @@ class HiFiC(object):
     self._create_image_summaries = create_image_summaries
 
     if not isinstance(self._model_type, ModelType):
-      raise ValueError("Invalid model_type: [{}]".format(
-          self._config.model_type))
+      raise ValueError(f"Invalid model_type: [{self._config.model_type}]")
 
     self._auto_encoder_ckpt_path = None
     self._auto_encoder_savers = None
     if auto_encoder_ckpt_dir:
-      latest_ckpt = tf.train.latest_checkpoint(auto_encoder_ckpt_dir)
-      if not latest_ckpt:
-        raise ValueError(f"Did not find checkpoint in {auto_encoder_ckpt_dir}!")
-      self._auto_encoder_ckpt_path = latest_ckpt
+      if latest_ckpt := tf.train.latest_checkpoint(auto_encoder_ckpt_dir):
+        self._auto_encoder_ckpt_path = latest_ckpt
 
+      else:
+        raise ValueError(f"Did not find checkpoint in {auto_encoder_ckpt_dir}!")
     if self.training and not lpips_weight_path:
       lpips_weight_path = "lpips_weight__net-lin_alex_v0.1.pb"
 
@@ -187,11 +187,10 @@ class HiFiC(object):
     if self._setup_discriminator:
       self._num_steps_disc = self._config.num_steps_disc
       if self._num_steps_disc == 0:
-        raise ValueError("model_type=={} but num_steps_disc == 0.".format(
-            self._model_type))
+        raise ValueError(f"model_type=={self._model_type} but num_steps_disc == 0.")
       tf.logging.info(
-          "GAN Training enabled. Training discriminator for {} steps.".format(
-              self._num_steps_disc))
+          f"GAN Training enabled. Training discriminator for {self._num_steps_disc} steps."
+      )
     else:
       self._num_steps_disc = 0
 
@@ -314,10 +313,7 @@ class HiFiC(object):
         dataset = builder.as_dataset(split=split)
 
       def _preprocess(features):
-        if images_glob:
-          image = features
-        else:
-          image = features[tfds_arguments.features_key]
+        image = features if images_glob else features[tfds_arguments.features_key]
         if not crop_size:
           return image
         tf.logging.info("Scaling down %s and cropping to %d x %d", image,
@@ -382,8 +378,7 @@ class HiFiC(object):
       input_images_d_steps = tf.split(input_images_d_steps, self.num_steps_disc)
 
     if self.evaluation and input_images_d_steps:
-      raise ValueError("Only need input_image for eval! {}".format(
-          input_images_d_steps))
+      raise ValueError(f"Only need input_image for eval! {input_images_d_steps}")
 
     input_image.set_shape(self.input_spec["input_image"].shape)
 
@@ -401,7 +396,7 @@ class HiFiC(object):
 
     # Compute output graph.
     nodes_gen, bpp_pair, bitstrings = \
-      self._compute_compression_graph(input_image)
+        self._compute_compression_graph(input_image)
 
     if self.evaluation:
       tf.logging.info("Evaluation mode: build_model done.")
@@ -410,7 +405,7 @@ class HiFiC(object):
 
     nodes_disc = []  # list of Nodes, one for every sub-batch of disc
     for i, sub_batch in enumerate(input_images_d_steps):
-      with tf.name_scope("sub_batch_disc_{}".format(i)):
+      with tf.name_scope(f"sub_batch_disc_{i}"):
         nodes, _, _ = self._compute_compression_graph(
             sub_batch, create_summaries=False)
         nodes_disc.append(nodes)
@@ -443,7 +438,7 @@ class HiFiC(object):
       disc_optimizer = self._make_discriminator_optimizer(
           self._global_step_disc)
       for i, nodes in enumerate(nodes_disc):
-        with tf.name_scope("train_disc_{}".format(i + 1)):
+        with tf.name_scope(f"train_disc_{i + 1}"):
           with tf.control_dependencies(d_train_ops):
             d_train_ops.append(
                 self._train_discriminator(
@@ -480,12 +475,13 @@ class HiFiC(object):
     """Prepare the savers needed to restore encoder, decoder, entropy_model."""
     assert self._auto_encoder_savers is None
     self._auto_encoder_savers = []
-    for name, layer in [
-        ("entropy_model", self._entropy_model),
-        ("encoder", self._encoder),
-        ("decoder", self._decoder)]:
-      self._auto_encoder_savers.append(
-          tf.train.Saver(layer.variables, name=f"restore_{name}"))
+    self._auto_encoder_savers.extend(
+        tf.train.Saver(layer.variables, name=f"restore_{name}")
+        for name, layer in [
+            ("entropy_model", self._entropy_model),
+            ("encoder", self._encoder),
+            ("decoder", self._decoder),
+        ])
 
   def build_transforms(self):
     """Instantiates all transforms used by this model."""
@@ -520,12 +516,12 @@ class HiFiC(object):
     if self.evaluation:
       num_downscaling = self._encoder.num_downsampling_layers
       factor = 2 ** num_downscaling
-      tf.logging.info("Padding to {}".format(factor))
+      tf.logging.info(f"Padding to {factor}")
       input_image = _pad(input_image, image_shape, factor)
 
     with tf.name_scope("scale_down"):
       input_image_scaled = \
-          tf.cast(input_image, tf.float32) / 255.
+            tf.cast(input_image, tf.float32) / 255.
 
     info = self._get_encoder_out(input_image_scaled, image_shape)
     decoder_in = info.decoded
@@ -534,7 +530,7 @@ class HiFiC(object):
     bitstream_tensors = info.bitstream_tensors
 
     reconstruction, reconstruction_scaled = \
-        self._compute_reconstruction(
+          self._compute_reconstruction(
             decoder_in, image_shape, input_image_scaled.shape)
 
     if create_summaries and self._create_image_summaries:
@@ -603,8 +599,7 @@ class HiFiC(object):
       input_image = tf.cast(input_image, tf.float32)
       reconstruction = tf.cast(reconstruction, tf.float32)
       sq_err = tf.math.squared_difference(input_image, reconstruction)
-      distortion_loss = tf.reduce_mean(sq_err)
-      return distortion_loss
+      return tf.reduce_mean(sq_err)
 
   def _compute_perceptual_loss(self, nodes: Nodes):
     input_image_scaled = nodes.input_image_scaled
@@ -619,7 +614,7 @@ class HiFiC(object):
                        mode="g_loss"):
     """Create GAN loss using compare_gan."""
     if mode not in ("g_loss", "d_loss"):
-      raise ValueError("Invalid mode: {}".format(mode))
+      raise ValueError(f"Invalid mode: {mode}")
     assert self._gan_loss_function is not None
 
     # Called within either train_disc or train_gen namescope.
@@ -668,9 +663,7 @@ class HiFiC(object):
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
       with tf.name_scope("min_d"):
-        train_op_d = optimizer.minimize(
-            d_loss, self._global_step_disc, disc_vars)
-        return train_op_d
+        return optimizer.minimize(d_loss, self._global_step_disc, disc_vars)
 
   def _train_generator(self, nodes: Nodes, bpp_pair: BppPair, step):
     """Create training op for generator.
@@ -782,13 +775,15 @@ class HiFiC(object):
     # Check that we didn't miss any variables.
     all_trainable = set(tf.trainable_variables())
     all_known = set(transform_vars + entropy_vars + disc_vars)
-    if ((all_trainable != all_known) and
-        all_trainable != set(transform_vars_non_trainable) | all_known):
+    if all_trainable not in [
+        all_known,
+        set(transform_vars_non_trainable) | all_known,
+    ]:
       all_known |= set(transform_vars_non_trainable)
       missing_in_trainable = all_known - all_trainable
       missing_in_known = all_trainable - all_known
       non_trainable_vars_str = \
-          "\n".join(sorted(v.name for v in transform_vars_non_trainable))
+            "\n".join(sorted(v.name for v in transform_vars_non_trainable))
       raise ValueError("Did not capture all variables! " +
                        " Missing in trainable: " + str(missing_in_trainable) +
                        " Missing in known: " + str(missing_in_known) +
@@ -815,9 +810,11 @@ class HiFiC(object):
               self._config.lr,
               self._config.lr_schedule,
               step,
-              "lr_" + name,
-              summary=True),
-          name="adam_" + name)
+              f"lr_{name}",
+              summary=True,
+          ),
+          name=f"adam_{name}",
+      )
       minimize = optimizer.minimize(
           l, var_list=vs,
           global_step=step if i == 0 else None)  # Only update step once.
@@ -884,7 +881,7 @@ def _scheduled_value(value, schedule, step, name, summary=False):
   Returns:
     tf.Tensor.
   """
-  with tf.name_scope("schedule_" + name):
+  with tf.name_scope(f"schedule_{name}"):
     if len(schedule["steps"]) + 1 != len(schedule["vals"]):
       raise ValueError("Schedule expects one more value than steps.")
     steps = [int(s) for s in schedule["steps"]]

@@ -56,9 +56,7 @@ def _range_coding_offsets(num_noise_levels, prior_shape, dtype=tf.float32):
   offset_indexes = tf.range(num_noise_levels, dtype=dtype)
   offset_indexes = tf.reshape(
       offset_indexes, [-1] + [1] * prior_shape.rank)
-  offset = _offset_indexes_to_offset(
-      offset_indexes, num_noise_levels, dtype)
-  return offset
+  return _offset_indexes_to_offset(offset_indexes, num_noise_levels, dtype)
 
 
 class UniversalBatchedEntropyModel(
@@ -355,9 +353,9 @@ class UniversalIndexedEntropyModel(
   def _offset_from_indexes(self, indexes_with_offsets):
     """Computes the offset for universal quantization (overrides base class)."""
     offset_indexes = indexes_with_offsets[..., 0]
-    offset = _offset_indexes_to_offset(
-        offset_indexes, self._num_noise_levels, dtype=self.dtype)
-    return offset
+    return _offset_indexes_to_offset(offset_indexes,
+                                     self._num_noise_levels,
+                                     dtype=self.dtype)
 
   def _make_range_coding_prior(self, index_ranges, dtype):
     """Instantiates the range coding prior."""

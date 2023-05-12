@@ -133,16 +133,15 @@ class Decoder(tf.keras.layers.Layer):
                 kernel_size=3, padding="same"),
             ChannelNorm()]
 
-    residual_blocks = []
-    for block_idx in range(num_residual_blocks):
-      residual_blocks.append(
-          ResidualBlock(
-              filters=num_filters_base * (2 ** num_up),
-              kernel_size=3,
-              name="block_{}".format(block_idx),
-              activation="relu",
-              padding="same"))
-
+    residual_blocks = [
+        ResidualBlock(
+            filters=num_filters_base * (2**num_up),
+            kernel_size=3,
+            name=f"block_{block_idx}",
+            activation="relu",
+            padding="same",
+        ) for block_idx in range(num_residual_blocks)
+    ]
     tail = []
     for scale in reversed(range(num_up)):
       filters = num_filters_base * (2 ** scale)
@@ -333,7 +332,7 @@ class _PatchDiscriminatorCompareGANImpl(abstract_arch.AbstractDiscriminator):
   def apply(self, x):
     """Overwriting compare_gan's apply as we only need `x`."""
     if not isinstance(x, tuple) or len(x) != 2:
-      raise ValueError("Expected 2-tuple, got {}".format(x))
+      raise ValueError(f"Expected 2-tuple, got {x}")
     x, latent = x
     x_shape = tf.shape(x)
 

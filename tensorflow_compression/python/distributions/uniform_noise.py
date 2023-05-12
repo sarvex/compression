@@ -203,7 +203,7 @@ class NoisyMixtureSameFamily(tfp.distributions.MixtureSameFamily):
     self._base = tfp.distributions.MixtureSameFamily(
         mixture_distribution=mixture_distribution,
         components_distribution=components_distribution,
-        name=name + "Base",
+        name=f"{name}Base",
     )
 
   @property
